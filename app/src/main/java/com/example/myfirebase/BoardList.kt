@@ -52,6 +52,7 @@ class BoardList : AppCompatActivity() {
         lv.setOnItemClickListener { parent, view, position, id ->
             val intent = Intent(this, BoardWriteActivity::class.java)
             intent.putExtra("key", keyList[position])
+            intent.putExtra("authorUid", list[position].authorUid)
             intent.putExtra("title", list[position].title)
             intent.putExtra("content", list[position].content)
             startActivity(intent)
@@ -59,11 +60,15 @@ class BoardList : AppCompatActivity() {
 
         // 리스트뷰 아이템을 길게 눌렀을 때 삭제 확인 다이얼로그 띄우기
         lv.setOnItemLongClickListener { parent, view, position, id ->
+            val authorUid = list[position].authorUid
+            fun isOwner() = authorUid.isNotBlank() && authorUid == com.google.firebase.auth.FirebaseAuth.getInstance().uid
+            if (!isOwner()) return@setOnItemLongClickListener true
+            val key = keyList[position]
             AlertDialog.Builder(this)
                 .setTitle("게시글 삭제")
                 .setMessage("삭제하시겠습니까?")
                 .setPositiveButton("예") { dialog, which ->
-                    val key = keyList[position]
+                    if (!isOwner()) return@setPositiveButton
                     Firebase.database.getReference("board").child(key).removeValue()
                     Toast.makeText(this, "삭제되었습니다.", Toast.LENGTH_SHORT).show()
                 }

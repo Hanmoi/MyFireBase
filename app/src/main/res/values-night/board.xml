@@ -1,0 +1,7 @@
+<resources>
+    <color name="board_canvas">#14201D</color>
+    <color name="board_surface">#20302B</color>
+    <color name="board_accent">#8AD9BC</color>
+    <color name="board_on_accent">#073A2D</color>
+    <color name="board_line">#455E54</color>
+</resources>

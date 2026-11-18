@@ -3,6 +3,9 @@ package com.example.myfirebase
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import android.widget.ArrayAdapter
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.*
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -16,6 +19,18 @@ import java.util.Date
 import java.util.Locale
 
 class BoardWriteActivity : AppCompatActivity() {
+    private var commentsRef: DatabaseReference? = null
+    private var commentsListener: ValueEventListener? = null
+
+    override fun onStart() {
+        super.onStart()
+        commentsListener?.let { commentsRef?.addValueEventListener(it) }
+    }
+
+    override fun onStop() {
+        commentsListener?.let { commentsRef?.removeEventListener(it) }
+        super.onStop()
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
@@ -29,14 +44,56 @@ class BoardWriteActivity : AppCompatActivity() {
         }
         // 수정 모드인지 확인 (BoardList에서 전달받은 데이터가 있는지 체크)
         val key = intent.getStringExtra("key")
+        val authorUid = intent.getStringExtra("authorUid").orEmpty()
+        fun isOwner() = authorUid.isNotBlank() && authorUid == FirebaseAuth.getInstance().uid
         val title = intent.getStringExtra("title")
         val content = intent.getStringExtra("content")
 
         if (key != null) {
+            val ref = Firebase.database.getReference("board").child(key).child("comments")
+            commentsRef = ref
+            binding.comments.visibility = View.VISIBLE
+            val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1)
+            binding.commentList.adapter = adapter
+            commentsListener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    adapter.clear()
+                    for (comment in snapshot.children) {
+                        val author = comment.child("author").getValue(String::class.java) ?: "사용자"
+                        val text = comment.child("text").getValue(String::class.java) ?: continue
+                        adapter.add("$author\n$text")
+                    }
+                }
+                override fun onCancelled(error: DatabaseError) {
+                    Toast.makeText(this@BoardWriteActivity, "댓글을 불러오지 못했습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            binding.sendComment.setOnClickListener {
+                val text = binding.commentInput.text.toString().trim()
+                val user = FirebaseAuth.getInstance().currentUser
+                if (text.isEmpty()) {
+                    binding.commentInput.error = "댓글을 입력하세요"
+                } else if (user == null) {
+                    Toast.makeText(this, "로그인 후 댓글을 작성해 주세요.", Toast.LENGTH_SHORT).show()
+                } else {
+                    binding.sendComment.isEnabled = false
+                    val author = user.displayName?.takeIf { it.isNotBlank() } ?: "사용자"
+                    ref.push().setValue(mapOf("uid" to user.uid, "author" to author, "text" to text))
+                        .addOnCompleteListener { result ->
+                            binding.sendComment.isEnabled = true
+                            if (!result.isSuccessful) Toast.makeText(this, "댓글 등록에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            else if (binding.commentInput.text.toString().trim() == text) binding.commentInput.text.clear()
+                        }
+                }
+            }
             binding.writeTextArea.setText(title)
             binding.writeContentArea.setText(content)
             binding.writeUploadBtn.text = "수정하기"
-            binding.writeDeleteBtn.visibility = View.VISIBLE // 수정 모드일 때만 삭제하기 버튼 표시
+            val editable = isOwner()
+            binding.writeTextArea.isFocusable = editable
+            binding.writeContentArea.isFocusable = editable
+            binding.writeUploadBtn.visibility = if (editable) View.VISIBLE else View.GONE
+            binding.writeDeleteBtn.visibility = binding.writeUploadBtn.visibility
         }
 
         // 삭제하기 버튼 클릭 이벤트
@@ -46,6 +103,7 @@ class BoardWriteActivity : AppCompatActivity() {
                     .setTitle("게시글 삭제")
                     .setMessage("삭제하시겠습니까?")
                     .setPositiveButton("예") { dialog, which ->
+                        if (!isOwner()) return@setPositiveButton
                         Firebase.database.getReference("board").child(key).removeValue()
                         Toast.makeText(this, "삭제되었습니다.", Toast.LENGTH_SHORT).show()
                         finish()
@@ -60,6 +118,11 @@ class BoardWriteActivity : AppCompatActivity() {
          // 2) 구글에서 firebase realtime database android 검색,
         // 2) 시작하기, 그래들에 SDK추가,
         binding.writeUploadBtn.setOnClickListener {
+            val uid = FirebaseAuth.getInstance().uid ?: run {
+                Toast.makeText(this, "로그인 후 작성해 주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (key != null && !isOwner()) return@setOnClickListener
 
 // Write a message to the database
             val database = Firebase.database
@@ -71,12 +134,13 @@ class BoardWriteActivity : AppCompatActivity() {
             val newModel = Model(
                 binding.writeTextArea.text.toString(),
                 binding.writeContentArea.text.toString(),
-                currentDate
+                currentDate,
+                uid
             )
 
             if (key != null) {
                 // 수정 모드: 해당 키 위치의 데이터를 덮어쓰기
-                myRef.child(key).setValue(newModel)
+                myRef.child(key).updateChildren(mapOf("title" to newModel.title, "content" to newModel.content, "date" to newModel.date))
             } else {
                 // 새 글 작성 모드: 새로운 키를 생성하여 데이터 추가
                 myRef.push().setValue(newModel)

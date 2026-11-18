@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "805826834647",
+    "firebase_url": "https://firsttest-adf66-default-rtdb.firebaseio.com",
     "project_id": "firsttest-adf66",
     "storage_bucket": "firsttest-adf66.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.example.myfirebase"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "805826834647-82lnrmq81gihnqoavsosctbu2tmlmuo5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.myfirebase",
+            "certificate_hash": "1ffc3c7eb42366397ca7198fbcf02744da2427eb"
+          }
+        },
+        {
+          "client_id": "805826834647-giicsub846f9s4sl14ika2csapdes0lj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCGVsHhQtgiUllh0NrjemAcSMT1Nz0P_Mw"
@@ -20,7 +34,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "805826834647-giicsub846f9s4sl14ika2csapdes0lj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

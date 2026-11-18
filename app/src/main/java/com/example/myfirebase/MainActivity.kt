@@ -2,6 +2,17 @@ package com.example.myfirebase
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
+import androidx.lifecycle.lifecycleScope
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.GoogleAuthProvider
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -36,6 +47,7 @@ class MainActivity : AppCompatActivity() {
             Toast.LENGTH_SHORT).show()
 
 
+        binding.googleLoginBtn.setOnClickListener { signInWithGoogle(binding) }
         binding.joinBtn.setOnClickListener {
             val email = binding.emailArea.text.toString().trim()
             val pwd = binding.pwdArea.text.toString().trim()
@@ -80,6 +92,39 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, "no", Toast.LENGTH_SHORT).show()
                     }
                 }
+        }
+    }
+    private fun signInWithGoogle(binding: ActivityMainBinding) {
+        // The Google Services plugin generates this resource when a web OAuth client exists.
+        val clientId = resources.getIdentifier("default_web_client_id", "string", packageName)
+        if (clientId == 0) {
+            Toast.makeText(this, R.string.google_setup_required, Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            binding.googleLoginBtn.isEnabled = false
+            try {
+                val option = GetSignInWithGoogleOption.Builder(getString(clientId)).build()
+                val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                val result = CredentialManager.create(this@MainActivity)
+                    .getCredential(this@MainActivity, request).credential
+                if (result !is CustomCredential || result.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    Toast.makeText(this@MainActivity, R.string.google_login_failed, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val token = GoogleIdTokenCredential.createFrom(result.data).idToken
+                auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null)).await()
+                startActivity(Intent(this@MainActivity, BoardList::class.java))
+            } catch (_: GetCredentialCancellationException) {
+                // The account picker was dismissed.
+            } catch (_: NoCredentialException) {
+                Toast.makeText(this@MainActivity, R.string.google_account_missing, Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Toast.makeText(this@MainActivity, R.string.google_login_failed, Toast.LENGTH_LONG).show()
+            } finally {
+                binding.googleLoginBtn.isEnabled = true
+            }
         }
     }
 }

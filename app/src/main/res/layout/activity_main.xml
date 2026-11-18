@@ -13,12 +13,15 @@
         android:id="@+id/emailArea"
         android:hint="email"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"/>
     <EditText
         android:id="@+id/pwdArea"
         android:hint="pwd"
+        android:inputType="textPassword"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"/>
     <Button
         android:id="@+id/joinBtn"
         android:text="회원가입"
